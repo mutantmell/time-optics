@@ -73,8 +73,11 @@ picos' :: Lens' Pico Int
 picos' = frac 1_000_000_000_000
 
 class TimeOfDay tod where
-    {-# MINIMAL timeOfDay #-}
+    {-# MINIMAL timeOfDay | diffTime #-}
     timeOfDay :: Lens' tod TimeLT.TimeOfDay
+    timeOfDay = diffTime % dtlt
+    diffTime :: Lens' tod Clock.DiffTime
+    diffTime = timeOfDay % re dtlt
     hours :: Lens' tod Int
     hours = timeOfDay % hours'
     minutes :: Lens' tod Int
@@ -108,6 +111,7 @@ dtlt = iso TimeLT.pastMidnight TimeLT.sinceMidnight
 
 instance TimeOfDay Clock.DiffTime where
     timeOfDay = castOptic dtlt
+    diffTime = castOptic simple
 
 utctDiffTime :: Lens' Clock.UTCTime Clock.DiffTime
 utctDiffTime = lens Clock.utctDayTime (\utct dt -> utct{Clock.utctDayTime = dt})
