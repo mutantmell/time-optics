@@ -13,6 +13,7 @@ module Data.Time.LocalTime.Optics (
     AsUtcTime (..),
     TimeOfDay (..),
     TimeZone (..),
+    timezone',
     LocalTime (..),
     ZonedTime (..),
     localTimeUtc,
@@ -141,6 +142,9 @@ instance TimeZone Clock.UTCTime where
 instance TimeZone TimeLT.ZonedTime where
     type Converted TimeLT.ZonedTime = TimeLT.ZonedTime
     timezone = lens TimeLT.zonedTimeZone (\zt tz -> zt{TimeLT.zonedTimeZone = tz})
+
+timezone' :: (TimeZone tz) => Getter tz TimeLT.TimeZone
+timezone' = getting timezone
 
 class (TimeOfDay lt, Date lt) => LocalTime lt where
     {-# MINIMAL #-}
