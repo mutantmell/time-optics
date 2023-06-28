@@ -15,10 +15,8 @@ module Data.Time.LocalTime.Optics (
     TimeZone (..),
     LocalTime (..),
     ZonedTime (..),
-    dtlt,
-    utctDiffTime,
-    utctZonedTime,
-    ltutct,
+    localTimeUtc,
+    utcZonedTime,
 ) where
 
 import Data.Time.Calendar.Optics (Date (..))
@@ -72,6 +70,9 @@ nanos' = frac 1_000_000_000
 picos' :: Lens' Pico Int
 picos' = frac 1_000_000_000_000
 
+dtlt :: Iso' Clock.DiffTime TimeLT.TimeOfDay
+dtlt = iso TimeLT.pastMidnight TimeLT.sinceMidnight
+
 class TimeOfDay tod where
     {-# MINIMAL timeOfDay | diffTime #-}
     timeOfDay :: Lens' tod TimeLT.TimeOfDay
@@ -97,6 +98,7 @@ class TimeOfDay tod where
 
 instance TimeOfDay TimeLT.TimeOfDay where
     timeOfDay = castOptic simple
+    diffTime = castOptic (re dtlt)
     hours = hours'
     minutes = minutes'
     seconds = seconds'
@@ -105,9 +107,6 @@ instance TimeOfDay TimeLT.TimeOfDay where
     microseconds = seconds % micros'
     nanoseconds = seconds % nanos'
     picoseconds = seconds % picos'
-
-dtlt :: Iso' Clock.DiffTime TimeLT.TimeOfDay
-dtlt = iso TimeLT.pastMidnight TimeLT.sinceMidnight
 
 instance TimeOfDay Clock.DiffTime where
     timeOfDay = castOptic dtlt
@@ -118,6 +117,7 @@ utctDiffTime = lens Clock.utctDayTime (\utct dt -> utct{Clock.utctDayTime = dt})
 
 instance TimeOfDay Clock.UTCTime where
     timeOfDay = utctDiffTime % timeOfDay
+    diffTime = castOptic utctDiffTime
 
 instance TimeOfDay TimeLT.LocalTime where
     timeOfDay = lens TimeLT.localTimeOfDay (\lt tod -> lt{TimeLT.localTimeOfDay = tod})
@@ -174,14 +174,14 @@ instance ZonedTime Clock.UTCTime
 instance ZonedTime TimeLT.ZonedTime where
     zonedtime = castOptic simple
 
-ltutct :: Iso' TimeLT.LocalTime Clock.UTCTime
-ltutct = iso toUtc fromUtc
+localTimeUtc :: Iso' TimeLT.LocalTime Clock.UTCTime
+localTimeUtc = iso toUtc fromUtc
   where
     toUtc lt = Clock.UTCTime (lt & TimeLT.localDay) (lt & TimeLT.localTimeOfDay & TimeLT.sinceMidnight)
     fromUtc utct = TimeLT.LocalTime (utct & Clock.utctDay) (utct & Clock.utctDayTime & TimeLT.pastMidnight)
 
-utctZonedTime :: Iso' TimeLT.ZonedTime (TimeLT.TimeZone, Clock.UTCTime)
-utctZonedTime = iso toUtc fromUtc
+utcZonedTime :: Iso' TimeLT.ZonedTime (TimeLT.TimeZone, Clock.UTCTime)
+utcZonedTime = iso toUtc fromUtc
   where
     toUtc zt = (zt ^. timezone, zt & TimeLT.zonedTimeToUTC)
     fromUtc (tz, utct) = TimeLT.utcToZonedTime tz utct
@@ -213,7 +213,7 @@ instance AsLocalTime TimeLT.LocalTime where
     _LocalTime = castOptic simple
 
 instance AsLocalTime Clock.UTCTime where
-    _LocalTime = castOptic (re ltutct)
+    _LocalTime = castOptic (re localTimeUtc)
 
 instance AsLocalTime String where
     _LocalTime = prism' TimeIso.iso8601Show TimeIso.iso8601ParseM
@@ -238,7 +238,7 @@ instance AsUtcTime Clock.UTCTime where
     _UtcTime = castOptic simple
 
 instance AsUtcTime TimeLT.LocalTime where
-    _UtcTime = castOptic ltutct
+    _UtcTime = castOptic localTimeUtc
 
 instance AsUtcTime String where
     _UtcTime = prism' TimeIso.iso8601Show TimeIso.iso8601ParseM
