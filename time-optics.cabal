@@ -20,6 +20,7 @@ library
     import:           warnings
     exposed-modules:  Data.Time.Optics
                     , Data.Time.Calendar.Optics
+                    , Data.Time.Clock.Optics
                     , Data.Time.Format.Optics
                     , Data.Time.LocalTime.Optics
     -- other-modules:

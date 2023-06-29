@@ -3,6 +3,7 @@
 
 module Data.Time.Calendar.Optics (
     AsDay (..),
+    CalendarDiff (..),
     Date (..),
 ) where
 
@@ -63,19 +64,25 @@ class Date dt where
     day :: Lens' dt Calendar.Day
     dayOfMonth :: Lens' dt Calendar.DayOfMonth
     dayOfMonth = day % dayOfMonth'
+    {-# INLINE dayOfMonth #-}
     monthOfYear :: Lens' dt Calendar.MonthOfYear
     monthOfYear = day % monthOfYear'
+    {-# INLINE monthOfYear #-}
     year :: Lens' dt Calendar.Year
     year = day % year'
+    {-# INLINE year #-}
 
 instance Date Calendar.Day where
     day = castOptic simple
+    {-# INLINE day #-}
 
 instance Date Clock.UTCTime where
     day = lens Clock.utctDay (\utct dy -> utct{Clock.utctDay = dy})
+    {-# INLINE day #-}
 
 instance Date TimeLT.LocalTime where
     day = lens TimeLT.localDay (\ld dy -> ld{TimeLT.localDay = dy})
+    {-# INLINE day #-}
 
 instance Date TimeLT.ZonedTime where
     day =
@@ -86,6 +93,43 @@ instance Date TimeLT.ZonedTime where
                     { TimeLT.zonedTimeToLocalTime = zt.zonedTimeToLocalTime{TimeLT.localDay = dy}
                     }
             )
+    {-# INLINE day #-}
+
+fromAddTime :: Num n => (n -> s -> t) -> n -> Iso s t t s
+fromAddTime f x = iso (f x) (f (negate x))
+{-# INLINE fromAddTime #-}
+
+calendarDiffIso :: Lens' a Calendar.Day -> Calendar.CalendarDiffDays -> Iso' a a
+calendarDiffIso f = \cd -> iso (addDiff cd) (subDiff cd)
+  where
+    addDiff = over f . Calendar.addGregorianDurationRollOver
+    subDiff = addDiff . Calendar.scaleCalendarDiffDays (-1)
+{-# INLINE calendarDiffIso #-}
+
+class (Date cd) => CalendarDiff cd where
+  {-# MINIMAL #-}
+  addDays :: Integer -> Iso' cd cd
+  addDays = fromAddTime (over day . Calendar.addDays)
+  {-# INLINE addDays #-}
+  subDays :: Integer -> Iso' cd cd
+  subDays = re . addDays
+  {-# INLINE subDays #-}
+  addCalendarDiff :: Calendar.CalendarDiffDays -> Iso' cd cd
+  addCalendarDiff = calendarDiffIso day
+  {-# INLINE addCalendarDiff #-}
+  subCalendarDiff :: Calendar.CalendarDiffDays -> Iso' cd cd
+  subCalendarDiff = re . addCalendarDiff
+  {-# INLINE subCalendarDiff #-}
+
+instance CalendarDiff Calendar.Day where
+  addDays = fromAddTime Calendar.addDays
+  {-# INLINE addDays #-}
+  addCalendarDiff = calendarDiffIso (castOptic simple)
+  {-# INLINE addCalendarDiff #-}
+
+instance CalendarDiff Clock.UTCTime
+instance CalendarDiff TimeLT.LocalTime
+instance CalendarDiff TimeLT.ZonedTime
 
 class AsDay t where
     {-# MINIMAL _Day #-}
@@ -93,6 +137,7 @@ class AsDay t where
 
 instance AsDay Calendar.Day where
     _Day = castOptic simple
+    {-# INLINE _Day #-}
 
 dayToIntegral :: (Integral a, Integral b, Integral c) => Calendar.Day -> (a, b, c)
 dayToIntegral = fmt . Calendar.toGregorian
@@ -104,18 +149,24 @@ dayFromIntegral (y, m, d) = Calendar.fromGregorianValid (fromIntegral y) (fromIn
 
 instance (Integral a, Integral b, Integral c) => AsDay (a, b, c) where
     _Day = prism' dayToIntegral dayFromIntegral
+    {-# INLINE _Day #-}
 
 instance AsDay String where
     _Day = prism' TimeIso.iso8601Show TimeIso.iso8601ParseM
+    {-# INLINE _Day #-}
 
 instance AsDay SText.Text where
     _Day = unpacked % _Day
+    {-# INLINE _Day #-}
 
 instance AsDay LText.Text where
     _Day = unpacked % _Day
+    {-# INLINE _Day #-}
 
 instance AsDay SByteString.ByteString where
     _Day = STextOptics.utf8 % _Day
+    {-# INLINE _Day #-}
 
 instance AsDay LByteString.ByteString where
     _Day = LTextOptics.utf8 % _Day
+    {-# INLINE _Day #-}

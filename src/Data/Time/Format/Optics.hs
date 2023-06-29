@@ -17,6 +17,7 @@ module Data.Time.Format.Optics (
     localTimeFormat,
     zonedTimeFormat,
     utcTimeFormat,
+    rfc822DateFormat,
 ) where
 
 import Optics
@@ -36,6 +37,8 @@ import qualified Data.Text.Lazy.Optics as LTextOptics
 import Data.Text.Optics (unpacked)
 import qualified Data.Text.Strict.Optics as STextOptics
 
+import Data.Time.LocalTime.Optics (ZonedTime)
+
 class TimeFormat f where
     {-# MINIMAL iso8601, isoformat, timeformat' #-}
     iso8601 :: (TimeIso.ISO8601 t) => Prism' f t
@@ -50,31 +53,47 @@ class TimeFormat f where
         String ->
         Prism' f t
     timeformat = timeformat' TimeF.defaultTimeLocale
+    {-# INLINE timeformat #-}
 
 instance TimeFormat String where
     iso8601 = prism' TimeIso.iso8601Show TimeIso.iso8601ParseM
+    {-# INLINE iso8601 #-}
     isoformat fmt = prism' (TimeIso.formatShow fmt) (TimeIso.formatParseM fmt)
+    {-# INLINE isoformat #-}
     timeformat' loc fmt = prism' (TimeF.formatTime loc fmt) (TimeF.parseTimeM False loc fmt)
+    {-# INLINE timeformat' #-}
 
 instance TimeFormat SText.Text where
     iso8601 = unpacked % iso8601
+    {-# INLINE iso8601 #-}
     isoformat fmt = unpacked % isoformat fmt
+    {-# INLINE isoformat #-}
     timeformat' loc fmt = unpacked % timeformat' loc fmt
+    {-# INLINE timeformat' #-}
 
 instance TimeFormat LText.Text where
     iso8601 = unpacked % iso8601
+    {-# INLINE iso8601 #-}
     isoformat fmt = unpacked % isoformat fmt
+    {-# INLINE isoformat #-}
     timeformat' loc fmt = unpacked % timeformat' loc fmt
+    {-# INLINE timeformat' #-}
 
 instance TimeFormat SByteString.ByteString where
     iso8601 = STextOptics.utf8 % iso8601
+    {-# INLINE iso8601 #-}
     isoformat fmt = STextOptics.utf8 % isoformat fmt
+    {-# INLINE isoformat #-}
     timeformat' loc fmt = STextOptics.utf8 % timeformat' loc fmt
+    {-# INLINE timeformat' #-}
 
 instance TimeFormat LByteString.ByteString where
     iso8601 = LTextOptics.utf8 % iso8601
+    {-# INLINE iso8601 #-}
     isoformat fmt = LTextOptics.utf8 % isoformat fmt
+    {-# INLINE isoformat #-}
     timeformat' loc fmt = LTextOptics.utf8 % timeformat' loc fmt
+    {-# INLINE timeformat' #-}
 
 calendarFormat :: (TimeFormat f) => Prism' f Calendar.Day
 calendarFormat = isoformat (TimeIso.calendarFormat TimeIso.ExtendedFormat)
@@ -120,3 +139,6 @@ zonedTimeFormat = isoformat (TimeIso.zonedTimeFormat TimeIso.iso8601Format TimeI
 
 utcTimeFormat :: (TimeFormat f) => Prism' f Clock.UTCTime
 utcTimeFormat = isoformat (TimeIso.utcTimeFormat TimeIso.iso8601Format TimeIso.iso8601Format)
+
+rfc822DateFormat :: (TimeFormat f, TimeF.ParseTime zt, TimeF.FormatTime zt, ZonedTime zt) => Prism' f zt
+rfc822DateFormat = timeformat TimeF.rfc822DateFormat
