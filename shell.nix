@@ -14,5 +14,6 @@ in pkgs.mkShell {
     pkgs.cabal-install
     pkgs.haskell-ci
     ghc
+    pkgs.haskellPackages.fourmolu
   ];
 }
